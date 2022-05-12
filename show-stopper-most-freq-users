@@ -16,4 +16,5 @@ WVDErrors
     on CorrelationId  
     | extend SessionDuration=EndTime - StartTime
 | summarize TotalDuration=sum(SessionDuration) by UserName) on UserName
-| summarize count() by UserName,ErrorMessage
+| summarize count_user=count() by UserName,ErrorMessage
+| partition by ErrorMessage (top 5 by count_user)
