@@ -1,0 +1,19 @@
+let ErrorMessages=datatable(CodeSymbolic:string,ErrorMessage:string)
+[
+"AuthenticationLogonFailed","Authentication Error",
+"ConnectionFailedClientDisconnect","Network Error"
+];
+WVDErrors
+| where TimeGenerated>ago(21d) 
+|join kind=inner ErrorMessages on CodeSymbolic
+|join kind=inner (WVDConnections 
+| where TimeGenerated > ago(21d) 
+| where State == "Connected"  
+| project CorrelationId , UserName, ConnectionType , StartTime=TimeGenerated  
+| join (WVDConnections  
+    | where State == "Completed"  
+    | project EndTime=TimeGenerated, CorrelationId)  
+    on CorrelationId  
+    | extend SessionDuration=EndTime - StartTime
+| summarize TotalDuration=sum(SessionDuration) by UserName) on UserName
+| summarize count() by UserName,ErrorMessage
