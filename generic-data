@@ -1,0 +1,130 @@
+//Number of weekly Users
+WVDConnections
+|where TimeGenerated >=ago(30d)
+|where State == "Started" 
+|project UserName,CorrelationId,TimeGenerated
+|join (WVDConnections
+        |where State=="Completed"
+        |project UserName,CorrelationId,TimeGenerated)
+        on CorrelationId
+|extend Date=format_datetime(startofweek(TimeGenerated),'yyyy-MM-dd')
+|distinct UserName,Date
+|summarize Users=count() by Date
+
+// Average Duration
+WVDConnections
+|where TimeGenerated >= ago(30d)
+|where State == "Started" 
+|project CorrelationId,StartTime=TimeGenerated
+|join (WVDConnections
+        |where State=="Completed"
+        |project CorrelationId,EndTime=TimeGenerated)
+        on CorrelationId
+|extend SessionDuration=(EndTime-StartTime)/1s
+|summarize AvgDuration=avg(SessionDuration) by format_datetime(startofday(StartTime),'yyyy-MM-dd')
+
+
+// Average Log On Time  - 
+WVDConnections
+|where TimeGenerated >= ago(30d)
+|where State == "Started" 
+|project CorrelationId,StartTime=TimeGenerated
+|join (WVDConnections
+        |where State=="Connected"
+        |project CorrelationId,EndTime=TimeGenerated)
+        on CorrelationId
+|extend LogOnTime=(EndTime-StartTime)/1s
+|summarize AvgLogOnTime=avg(LogOnTime) by format_datetime(startofday(StartTime),'yyyy-MM-dd')
+
+
+WVDConnections
+|where TimeGenerated >= ago(7d)
+|where State == "Started" 
+|project CorrelationId,StartTime=TimeGenerated
+|join (WVDConnections
+        |where State=="Completed"
+        |project CorrelationId,EndTime=TimeGenerated)
+        on CorrelationId
+|extend SessionDuration=(EndTime-StartTime)/1s
+|summarize AvgDuration=avg(SessionDuration)
+
+// Estimated cost - ??
+
+// Top 25 most active users 
+WVDConnections 
+| where TimeGenerated > ago(7d)
+| where State == "Started" 
+| project CorrelationId , UserName, ConnectionType , StartTime=TimeGenerated 
+| join (WVDConnections 
+    | where State == "Completed" 
+    | project EndTime=TimeGenerated, CorrelationId) 
+    on CorrelationId 
+| extend SessionDuration = (EndTime - StartTime)/1s
+| summarize Duration = sum(SessionDuration) by UserName
+| sort by Duration desc
+| limit 25
+
+WVDConnections 
+| where TimeGenerated > ago(30d)
+| where State == "Started" 
+| project CorrelationId , UserName, ConnectionType , StartTime=TimeGenerated 
+| join (WVDConnections 
+    | where State == "Completed" 
+    | project EndTime=TimeGenerated, CorrelationId) 
+    on CorrelationId 
+| extend SessionDuration=(EndTime-StartTime)/1s
+| where SessionDuration>=10
+| summarize Count = count() by UserName
+| sort by Count desc
+| limit 25
+
+
+// Top 25 Least Active user
+WVDConnections 
+| where TimeGenerated > ago(7d)
+| where State == "Started" 
+| project CorrelationId , UserName, ConnectionType , StartTime=TimeGenerated 
+| join (WVDConnections 
+    | where State == "Completed" 
+    | project EndTime=TimeGenerated, CorrelationId) 
+    on CorrelationId 
+| extend SessionDuration = (EndTime - StartTime)/1s
+| summarize Duration = sum(SessionDuration) by UserName
+| sort by Duration asc
+| limit 25
+
+WVDConnections 
+| where TimeGenerated > ago(30d)
+| where State == "Started" 
+| project CorrelationId , UserName, ConnectionType , StartTime=TimeGenerated 
+| join (WVDConnections 
+    | where State == "Completed" 
+    | project EndTime=TimeGenerated, CorrelationId) 
+    on CorrelationId 
+| extend SessionDuration=(EndTime-StartTime)/1s
+| where SessionDuration>=10
+| summarize Count = count() by UserName
+| sort by Count asc
+| limit 25
+
+
+// Acces Time
+WVDConnections 
+| where TimeGenerated > ago(30d)
+| where State == "Started" 
+| project CorrelationId , UserName, ConnectionType , StartTime=TimeGenerated 
+| join (WVDConnections 
+    | where State == "Connected" 
+    | project EndTime=TimeGenerated, CorrelationId) 
+    on CorrelationId 
+| extend AccesTime=(EndTime-StartTime)/1s
+| where AccesTime >=10
+|distinct UserName
+|summarize count_users=count()
+
+
+// Top 10 connection errors - Daily
+WVDErrors 
+|where TimeGenerated>ago(30d)
+|extend DailyDate=format_datetime(startofday(TimeGenerated),'yyyy-MM-dd')
+|summarize  Count_CodeSymbolic=count() by CodeSymbolic,DailyDate
