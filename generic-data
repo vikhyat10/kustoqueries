@@ -143,3 +143,23 @@ WVDErrors
 | where TimeGenerated >=ScriptCodeExecutionTime
 |project TimeGenerated,ScriptCodeExecutionTime,ErrorMessage,CorrelationId
 |partition by CorrelationId(top 1 by ScriptCodeExecutionTime)
+
+
+let CustomLog=datatable(TimeGenerated:datetime ,Message:string)
+[
+"4/21/2022, 4:50:13.978 PM","VM removed successfully",
+"5/01/2022, 6:03:13.978 PM","VM removed successfully",
+"4/21/2022, 5:53:13.978 PM","VM Created"
+]; 
+let ErrorMessages=datatable(CodeSymbolic:string,ErrorMessage:string)
+[
+"AuthenticationLogonFailed","Authentication Error",
+"ConnectionFailedClientDisconnect","Network Error"
+];
+WVDErrors
+| where TimeGenerated>ago(21d) 
+|join kind=inner ErrorMessages on CodeSymbolic
+| extend dummy = 1
+| lookup (CustomLog | extend dummy = 1 |extend ScriptCodeExecution=TimeGenerated|extend ScriptMessage=Message| where Message=="VM removed successfully"|sort by TimeGenerated desc) on dummy
+| where TimeGenerated>=ScriptCodeExecution
+|project TimeGenerated,ScriptCodeExecution,ErrorMessage,CorrelationId,CodeSymbolic
