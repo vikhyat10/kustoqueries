@@ -128,3 +128,18 @@ WVDErrors
 |where TimeGenerated>ago(30d)
 |extend DailyDate=format_datetime(startofday(TimeGenerated),'yyyy-MM-dd')
 |summarize  Count_CodeSymbolic=count() by CodeSymbolic,DailyDate
+
+
+let ErrorMessages=datatable(CodeSymbolic:string,ErrorMessage:string)
+[
+"AuthenticationLogonFailed","Authentication Error",
+"ConnectionFailedClientDisconnect","Network Error"
+];
+WVDErrors
+| where TimeGenerated>ago(21d) 
+|join kind=inner ErrorMessages on CodeSymbolic
+| extend dummy = 1
+| lookup (AVDScaling_CL | extend dummy = 1 |extend ScriptCodeExecutionTime=TimeGenerated|extend ScriptMessage=Message| where Message=="VM Deleted"|sort by TimeGenerated desc) on dummy
+| where TimeGenerated >=ScriptCodeExecutionTime
+|project TimeGenerated,ScriptCodeExecutionTime,ErrorMessage,CorrelationId
+|partition by CorrelationId(top 1 by ScriptCodeExecutionTime)
