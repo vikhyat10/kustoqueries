@@ -1,0 +1,35 @@
+import json
+import requests
+import csv
+source_file='/Users/vikhyat/Desktop/IPAddress.csv'
+destination_file='/Users/vikhyat/Desktop/Results.csv'
+with open(source_file) as f:
+    try:
+        data=f.readlines()
+        data=data[1:]
+    except IOException as ioe:
+        print(ioe)
+
+csv_columns=['ip_address','latency','country','city','region','error']
+results=[]
+for d in data:
+    try:
+        d=d.strip()
+        print(d)
+        row_arr=d.split(',')
+        ip_addrs=row_arr[0]
+        latency=row_arr[1]
+        ele= requests.get('https://ipinfo.io/'+ip_addrs)
+        json_data=json.loads(ele.text)
+        results.append({'ip_address':str(ip_addrs),'latency':str(latency),'country':json_data['country'],'city':json_data['city'],'region':json_data['region'],'error':''})
+    except KeyError as e:
+        print("KeyError",e)
+        results.append({'ip_address':str(ip_addrs),'latency':str(latency),'country':'','city':'','region':'','error':"KeyError:"+str(e)})
+    except Exception as e:
+        results.append({'ip_address':str(ip_addrs),'latency':str(latency),'country':'','city':'','region':'','error':"Error:"+str(e)})
+
+with open(destination_file, 'w') as csvfile:
+    writer = csv.DictWriter(csvfile, fieldnames=csv_columns)
+    writer.writeheader()
+    for data in results:
+        writer.writerow(data)
